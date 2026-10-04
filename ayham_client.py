@@ -48,7 +48,6 @@ try:
 
     # Session key: NONE = empty, AES = 32 random bytes, CAESAR = shift 1-25
     key = generate_session_key(mode)
-    print("[ENC] Session key (" + mode + "):", key.hex())
     
     # connect to the server
     s.connect((host, PORT))
@@ -112,9 +111,7 @@ try:
                 continue
 
             # Decrypt with the session key (NONE returns the same data)
-            print("[ENC] Received (encrypted):", decode_field(fields[0]))
             data = decrypt_payload(decode_field(fields[0]), mode, key)
-            print("[ENC] After decryption    :", data)
             get_message()  # READ_COMPLETE
 
             print("----- " + filename + " -----")
