@@ -127,18 +127,23 @@ def handle_open_read(clientsocket, session, filename_field):
     send_packet(clientsocket, "DP", [encode_field(data)])
     send_success(clientsocket, "READ_COMPLETE")
 
-
 # ---------- openWrite ----------
 def handle_open_write(clientsocket, session, filename_field):
-    # (CM,openWrite,filename) -> (SC,READY) -> (DP,data) -> (SC,SAVED)
+    # (CM,openWrite,filename): create the new file in write mode
     filename = decode_field(filename_field).decode()
     path = os.path.join(session["current_directory"], filename)
 
+    try:
+        file = open(path, "wb")
+    except OSError as e:
+        send_error(clientsocket, 2, e.strerror + ": " + filename)
+        return
     send_success(clientsocket, "READY")
 
-    # The next packet must be the data packet
+    # (DP,data): the data to save in the file created above
     packet_type, fields = receive_packet(clientsocket)
     if packet_type != "DP":
+        file.close()
         send_error(clientsocket, 1, "Expected DP packet")
         return
 
@@ -146,18 +151,14 @@ def handle_open_write(clientsocket, session, filename_field):
     try:
         data = decrypt_payload(decode_field(fields[0]), session["mode"], session["session_key"])
     except Exception:
+        file.close()
         send_error(clientsocket, 4, "Could not decrypt the file data")
         return
 
-    try:
-        file = open(path, "wb")
-        file.write(data)
-        file.close()
-    except OSError as e:
-        send_error(clientsocket, 2, e.strerror + ": " + filename)
-        return
-
+    file.write(data)
+    file.close()
     send_success(clientsocket, "SAVED")
+
 
 
 # ---------- SECURED SETUP ----------
