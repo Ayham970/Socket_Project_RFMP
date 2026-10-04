@@ -48,7 +48,8 @@ try:
 
     # Session key: NONE = empty, AES = 32 random bytes, CAESAR = shift 1-25
     key = generate_session_key(mode)
-
+    print("[ENC] Session key (" + mode + "):", key.hex())
+    
     # connect to the server
     s.connect((host, PORT))
 
@@ -111,7 +112,9 @@ try:
                 continue
 
             # Decrypt with the session key (NONE returns the same data)
+            print("[ENC] Received (encrypted):", decode_field(fields[0]))
             data = decrypt_payload(decode_field(fields[0]), mode, key)
+            print("[ENC] After decryption    :", data)
             get_message()  # READ_COMPLETE
 
             print("----- " + filename + " -----")
@@ -125,17 +128,19 @@ try:
                 print("Saved to " + save_name)
 
         elif choice == "3":
-            # (CM,openWrite,filename) -> (SC,READY) -> (DP,data) -> (SC,SAVED)
-            local_name = input("Local file to send: ")
-            try:
-                file = open(local_name, "rb")
-                data = file.read()
-                file.close()
-            except OSError:
-                print("Local file not found: " + local_name)
-                continue
+            # (CM,openWrite,filename) -> (SC,READY) -> (DP,text) -> (SC,SAVED)
+            filename = input("File name on server: ")
 
-            filename = input("Save on server as: ")
+            # The user types the text to save, one line at a time
+            print("Type the text to save. Press Enter on an empty line to finish.")
+            lines = []
+            while True:
+                line = input()
+                if line == "":
+                    break
+                lines.append(line)
+            data = ("\n".join(lines) + "\n").encode()
+
             send_packet(s, "CM", ["openWrite", encode_field(filename.encode())])
             if get_message() != "READY":
                 continue
@@ -145,7 +150,7 @@ try:
             send_packet(s, "DP", [encode_field(data)])
 
             if get_message() == "SAVED":
-                print("File uploaded.")
+                print("File saved on the server.")
 
         elif choice == "4":
             # ---------- CLOSING PHASE ----------
